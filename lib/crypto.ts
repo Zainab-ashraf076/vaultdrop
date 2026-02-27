@@ -5,13 +5,13 @@ export async function generateKey(password: string, salt: Uint8Array): Promise<C
   const enc = new TextEncoder()
   const keyMaterial = await window.crypto.subtle.importKey(
     'raw',
-    enc.encode(password),
+    enc.encode(password) as BufferSource,
     { name: 'PBKDF2' },
     false,
     ['deriveKey']
   )
   return window.crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: salt.buffer.slice(salt.byteOffset, salt.byteOffset + salt.byteLength) as ArrayBuffer, iterations: 100000, hash: 'SHA-256' },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -27,7 +27,7 @@ export async function encryptFile(
   const iv = window.crypto.getRandomValues(new Uint8Array(12))
   const key = await generateKey(password, salt)
   const fileBuffer = await file.arrayBuffer()
-  const encryptedData = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, fileBuffer)
+  const encryptedData = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength) as ArrayBuffer }, key, fileBuffer)
   return { encryptedData, salt, iv, fileName: file.name, fileType: file.type, fileSize: file.size }
 }
 
@@ -38,7 +38,7 @@ export async function decryptFile(
   iv: Uint8Array
 ): Promise<ArrayBuffer> {
   const key = await generateKey(password, salt)
-  return window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encryptedData)
+  return window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength) as ArrayBuffer }, key, encryptedData)
 }
 
 export function encodeVaultPayload(params: {
